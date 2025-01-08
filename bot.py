@@ -7,6 +7,7 @@ from fpdf import FPDF
 import re
 from speechRecognition import *
 from posturedetection import *
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -114,19 +115,29 @@ def generate_pdf(questions, pdf_path):
 
     pdf.output(pdf_path)
 
+posture_data = {}
+
+def record_posture_data(posture, eye_movement):
+    """Record posture and eye movement with a timestamp."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    posture_data[timestamp] = {
+        "posture": posture,
+        "eye_movement": eye_movement
+    }
+
 def conduct_interview(resume_path, pdf_path):
     """Conduct an interview by asking questions and gathering answers from the user."""
     print("Welcome to the Personalized Interview Bot!\n")
 
     personal_info = ["Your Name", "your.email@example.com", "Your University"]
     skills, projects = extract_resume_info(resume_path)
-    
+
     if not skills and not projects:
         print("No skills or projects detected in the resume. The interview will proceed with general questions based on your resume.")
         questions = []
     else:
         questions = generate_custom_questions(projects, skills)
-    
+
     all_questions = []
     user_answers = []
     correct_answers = []
@@ -138,6 +149,16 @@ def conduct_interview(resume_path, pdf_path):
         user_answer = input("Your answer: ")
         user_answers.append(user_answer)
 
+        # Record and display posture feedback during the answer
+        posture_feedback, eye_movement = assess_posture(results.pose_landmarks.landmark)
+        record_posture_data(posture_feedback, eye_movement)
+        print("Posture Analysis Result:", posture_feedback)
+
+        _, tone_result = capture_audio_and_analyze()
+        if tone_result:
+            print(f"Tone Analysis Result: You seem to be expressing a {tone_result} tone.")
+
+        # Get the correct answer for comparison
         correct_answer_prompt = f"Provide a detailed explanation for: {question}"
         correct_answer = client.chat.completions.create(
             messages=[
@@ -150,24 +171,22 @@ def conduct_interview(resume_path, pdf_path):
         ).choices[0].message.content
         correct_answers.append(correct_answer)
 
-        # Integrate posture and tone analysis
-        posture_feedback = assess_posture()
-        print("Posture Analysis Result:", posture_feedback)
-
-        _, tone_result = capture_audio_and_analyze()
-        if tone_result:
-            print(f"Tone Analysis Result: You seem to be expressing a {tone_result} tone.")
-    
     print("Interview session ended. Thank you!\n")
 
+    # Process and display feedback
     overall_feedback = []
     for user_answer, correct_answer in zip(user_answers, correct_answers):
         feedback = get_feedback(user_answer, correct_answer)
         overall_feedback.append(feedback)
-    
+
     print("Overall Feedback for Interview:\n")
     for idx, feedback in enumerate(overall_feedback, start=1):
         print(f"Feedback for Question {idx}: {feedback}\n")
+
+    # Print final posture analysis results for review
+    print("Overall Posture and Eye Movement Data:\n")
+    for timestamp, data in posture_data.items():
+        print(f"At {timestamp}: Posture - {data['posture']}, Eye Movement - {data['eye_movement']}")
 
     try:
         with open(resume_path, "r", encoding="utf-8") as file:

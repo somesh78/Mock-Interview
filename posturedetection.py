@@ -7,6 +7,29 @@ mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 mp_drawing = mp.solutions.drawing_utils
 
+# Function to assess head orientation
+def check_head_orientation(landmarks):
+    facing_forward = False
+
+    if landmarks:
+        # Extract nose and eye landmarks for head orientation
+        nose = landmarks[mp_pose.PoseLandmark.NOSE.value]
+        left_eye = landmarks[mp_pose.PoseLandmark.LEFT_EYE.value]
+        right_eye = landmarks[mp_pose.PoseLandmark.RIGHT_EYE.value]
+
+        if (nose.visibility > 0.5 and left_eye.visibility > 0.5 and right_eye.visibility > 0.5):
+            eye_distance_x = abs(left_eye.x - right_eye.x)
+            nose_centered_x = abs(nose.x - (left_eye.x + right_eye.x) / 2)
+
+            # Check if the nose is aligned between the eyes (facing forward)
+            if nose_centered_x < 0.05 * eye_distance_x:  # Relative threshold based on eye distance
+                facing_forward = True
+                print("Good: User is looking at the screen.")
+            else:
+                print("Warning: User is not looking directly at the screen.")
+
+    return facing_forward
+
 # Function to assess overall posture
 def assess_overall_posture(landmarks):
     neck_good = False
@@ -48,11 +71,17 @@ def assess_overall_posture(landmarks):
             elif shoulder_hip_diff_y < 0.1:  # Slouching check
                 print("Slouching detected: straighten your back.")
 
-        # Overall posture check
-        if neck_good and sitting_good:
-            print("Overall posture is good.")
+        # Overall posture check with head orientation
+        head_facing = check_head_orientation(landmarks)
+        if neck_good and sitting_good and head_facing:
+            print("Overall posture and head orientation are good.")
         else:
             print("Overall posture needs adjustment.")
+
+def assess_posture(landmarks):
+    posture_feedback = assess_overall_posture(landmarks)
+    eye_movement = check_head_orientation(landmarks)
+    return posture_feedback, eye_movement
 
 # Start video capture
 cap = cv2.VideoCapture(0)
@@ -74,7 +103,7 @@ while cap.isOpened():
         assess_overall_posture(results.pose_landmarks.landmark)
 
     # Display the video feed with landmarks
-    cv2.imshow('Mock Interview Posture Detection', frame)
+    cv2.imshow('Mock Interview Posture and Head Orientation Detection', frame)
 
     # Break the loop on 'q' key press
     if cv2.waitKey(1) & 0xFF == ord('q'):
