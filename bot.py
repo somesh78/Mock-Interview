@@ -9,29 +9,22 @@ from speechRecognition import *
 from posturedetection import *
 from datetime import datetime
 
-# Load environment variables
 load_dotenv()
 
-# Groq API setup
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 client = Groq(api_key=GROQ_API_KEY)
 
-# Load SpaCy model for resume parsing
 nlp = spacy.load("en_core_web_sm")
 
 def extract_resume_info(resume_path):
-    """Extract resume information such as projects, skills, and experience."""
     doc = Document(resume_path)
     resume_text = ""
     for para in doc.paragraphs:
         resume_text += para.text + "\n"
     
-    # Use a dynamic approach to extract projects and skills
     return extract_projects_and_skills(resume_text)
 
 def extract_projects_and_skills(text, personal_info=None, skill_keywords=None, project_keywords=None):
-    """Dynamically extract project names and skills from the resume text."""
-    
     if skill_keywords is None:
         skill_keywords = ["machine learning", "deep learning", "python", "data analysis", "AI", "neural networks"]
     
@@ -59,7 +52,6 @@ def extract_projects_and_skills(text, personal_info=None, skill_keywords=None, p
     return skills, projects
 
 def generate_custom_questions(projects, skills):
-    """Generate personalized interview questions based on resume information."""
     questions = []
     
     for project in projects:
@@ -71,7 +63,6 @@ def generate_custom_questions(projects, skills):
     return questions
 
 def get_feedback(user_answer, correct_answer):
-    """Get feedback based on the user's answer."""
     prompt = f"The user provided the following answer: {user_answer}. Compare it with this correct answer: {correct_answer}. Provide feedback."
     
     chat_completion = client.chat.completions.create(
@@ -87,7 +78,6 @@ def get_feedback(user_answer, correct_answer):
     return chat_completion.choices[0].message.content
 
 def get_resume_feedback(resume_text):
-    """Provide feedback on the resume based on its content."""
     prompt = f"Based on this resume content: '{resume_text}', provide feedback on the structure, clarity, skills, and any potential areas of improvement."
     
     chat_completion = client.chat.completions.create(
@@ -103,7 +93,6 @@ def get_resume_feedback(resume_text):
     return chat_completion.choices[0].message.content
 
 def generate_pdf(questions, pdf_path):
-    """Generate a PDF with the unique interview questions."""
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
@@ -118,7 +107,6 @@ def generate_pdf(questions, pdf_path):
 posture_data = {}
 
 def record_posture_data(posture, eye_movement):
-    """Record posture and eye movement with a timestamp."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     posture_data[timestamp] = {
         "posture": posture,
@@ -126,7 +114,6 @@ def record_posture_data(posture, eye_movement):
     }
 
 def conduct_interview(resume_path, pdf_path):
-    """Conduct an interview by asking questions and gathering answers from the user."""
     print("Welcome to the Personalized Interview Bot!\n")
 
     personal_info = ["Your Name", "your.email@example.com", "Your University"]
@@ -149,7 +136,6 @@ def conduct_interview(resume_path, pdf_path):
         user_answer = input("Your answer: ")
         user_answers.append(user_answer)
 
-        # Record and display posture feedback during the answer
         posture_feedback, eye_movement = assess_posture(results.pose_landmarks.landmark)
         record_posture_data(posture_feedback, eye_movement)
         print("Posture Analysis Result:", posture_feedback)
@@ -158,7 +144,6 @@ def conduct_interview(resume_path, pdf_path):
         if tone_result:
             print(f"Tone Analysis Result: You seem to be expressing a {tone_result} tone.")
 
-        # Get the correct answer for comparison
         correct_answer_prompt = f"Provide a detailed explanation for: {question}"
         correct_answer = client.chat.completions.create(
             messages=[
@@ -173,7 +158,6 @@ def conduct_interview(resume_path, pdf_path):
 
     print("Interview session ended. Thank you!\n")
 
-    # Process and display feedback
     overall_feedback = []
     for user_answer, correct_answer in zip(user_answers, correct_answers):
         feedback = get_feedback(user_answer, correct_answer)
@@ -183,7 +167,6 @@ def conduct_interview(resume_path, pdf_path):
     for idx, feedback in enumerate(overall_feedback, start=1):
         print(f"Feedback for Question {idx}: {feedback}\n")
 
-    # Print final posture analysis results for review
     print("Overall Posture and Eye Movement Data:\n")
     for timestamp, data in posture_data.items():
         print(f"At {timestamp}: Posture - {data['posture']}, Eye Movement - {data['eye_movement']}")
