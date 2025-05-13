@@ -9,6 +9,7 @@ import os
 
 model_path = os.path.join('Interview bot', 'model.keras')
 model = load_model(model_path)
+# "C:\Users\rajpu\Desktop\SR resume.pdf"
 
 def scale_data(X):
     reshaped_X = X.reshape(-1, X.shape[-1])
